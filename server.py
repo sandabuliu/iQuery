@@ -14,7 +14,7 @@ from tornado.web import StaticFileHandler
 
 from utils.config import config
 from utils.handler import BaseHandler
-from utils.futures import PoolExecutor, SQLTree
+from utils.futures import QueryExecutor, SQLTree
 
 __author__ = 'tong'
 
@@ -86,7 +86,7 @@ class Application(tornado.web.Application):
         self.handlers = []
         self.base_dir = os.path.dirname(os.path.join(root_path, api))
         self.load_handlers(api)
-        self.executor = PoolExecutor(config['pool_size'])
+        self.query_executor = QueryExecutor(config['pool_size'])
         self.sql_tree = SQLTree(source, config['jre_exe'])
         super(Application, self).__init__(self.handlers, default_host, transforms, **settings)
 

@@ -43,7 +43,7 @@ class BaseHandler(RequestHandler):
         self.trace_id = None
         self.user_id = None
         self.args = None
-        self.async_do = self.application.executor.submit
+        self.async_do = self.application.query_executor.submit
         self.gen_tree = self.application.sql_tree.gen_tree
         for method in self.SUPPORTED_METHODS:
             method = method.lower()

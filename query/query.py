@@ -43,9 +43,9 @@ class Query(object):
 
     def execute(self):
         start = time.time()
-        logger.info('connector: %s, query: %s' % (self._bindobj.connect_str, self))
+        logger.info('connector: %s, query: %s' % (self._bindobj, self))
         result = ResultProxy(self._query.execute())
-        logger.info('connector: %s, query: %s, cost: %s' % (self._bindobj.connect_str, self, time.time() - start))
+        logger.info('connector: %s, query: %s, cost: %s' % (self._bindobj, self, time.time() - start))
         return result
 
     def __str__(self):

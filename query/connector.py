@@ -65,4 +65,6 @@ class Connector(object):
             self._tables[name] = self.engine.table(name)
 
     def __str__(self):
+        if self._engine:
+            return str(self.engine.engine)
         return self.connect_str

@@ -13,20 +13,16 @@ from concurrent.futures import ThreadPoolExecutor
 __author__ = 'tong'
 
 
-class PoolExecutor(ThreadPoolExecutor):
+class QueryExecutor(ThreadPoolExecutor):
     def __init__(self, max_works):
-        super(PoolExecutor, self).__init__(max_works)
+        super(QueryExecutor, self).__init__(max_works)
         self.futures = {}
 
     def submit(self, fn, *args, **kwargs):
-        future = super(PoolExecutor, self).submit(fn, *args, **kwargs)
-        if hasattr(fn, 'im_self'):
-            name = str(fn.im_self)
-        elif hasattr(fn, 'func_name'):
-            name = fn.func_name
-        else:
-            name = fn.__name__
-        self.futures[id(future)] = {'time': time.time(), 'name': name, 'future': future}
+        future = super(QueryExecutor, self).submit(fn, *args, **kwargs)
+        query = fn.im_self
+        self.futures[id(future)] = {'time': time.time(), 'sql': str(query),
+                                    'connector': query.connector, 'future': future}
         future.add_done_callback(self.finish)
         return future
 
