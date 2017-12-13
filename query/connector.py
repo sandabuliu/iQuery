@@ -11,10 +11,10 @@ class Connector(object):
         self._tables = {}
         self.cstr = self._kwargs.pop('connect_str', None)
         self.type = self._kwargs.pop('type').lower()
-        self.username = self._kwargs.pop('username')
+        self.username = self._kwargs.pop('username', None)
         self.password = self._kwargs.pop('password', None)
-        self.host = self._kwargs.pop('host')
-        self.port = self._kwargs.pop('port')
+        self.host = self._kwargs.pop('host', None)
+        self.port = self._kwargs.pop('port', None)
         self.alias = self._kwargs.pop('alias', '') or ''
         self.database = self._kwargs.pop('database', None)
         self.connect_type = self._kwargs.pop('connect_type', None)
