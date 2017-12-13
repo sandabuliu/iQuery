@@ -26,7 +26,7 @@ class PoolExecutor(ThreadPoolExecutor):
             name = fn.func_name
         else:
             name = fn.__name__
-        self.futures[id(future)] = (time.time(), name, future)
+        self.futures[id(future)] = {'time': time.time(), 'name': name, 'future': future}
         future.add_done_callback(self.finish)
         return future
 
