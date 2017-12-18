@@ -205,4 +205,5 @@ curl -i -X GET 'http://127.0.0.1:8000/query/tree?sql=SELECT+*+FROM+faker91+limit
 ### TodoList
 
 * 数据导出
+* OLAP 接口
 * 可视化界面
