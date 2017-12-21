@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+import uuid
 import util
 import copy
 import logging
@@ -105,6 +106,10 @@ class Column(Visitable):
     def accept(cls, expr):
         return util.contain(expr, ['names']) and expr.get('key') != 'from'
 
+    @classmethod
+    def create(cls, *name):
+        return {'names': name}
+
 
 class Table(Visitable):
     @property
@@ -140,7 +145,7 @@ class TypeName(Visitable):
 
     @classmethod
     def create(cls, typename):
-        return TypeName({'typeName': {'names': [typename]}})
+        return {'typeName': {'names': [typename]}}
 
 
 class Expression(Visitable):
@@ -185,6 +190,90 @@ class Expression(Visitable):
     @classmethod
     def accept(cls, expr):
         return util.contain(expr, ['operator', 'operands'])
+
+    @classmethod
+    def create(cls, operator, *operands):
+        return {
+            "operator": {"name": operator},
+            "operands": operands or []
+        }
+
+
+class Over(Expression):
+    def func(self):
+        return Visitor(self._expr['operands'][0]).visit()
+
+    @property
+    def partition_by(self):
+        if len(self._expr['operands']) < 2:
+            return []
+        args = self._expr['operands'][1]
+        if args.get('partitionList'):
+            return ValueList(args['partitionList']).visit()
+        return []
+
+    @property
+    def order_by(self):
+        if len(self._expr['operands']) < 2:
+            return []
+        args = self._expr['operands'][1]
+        if args.get('orderList'):
+            return ValueList(args['orderList']).visit()
+        return []
+
+    def parse(self):
+        from sqlalchemy import select
+        root = self._expr.get('root')
+        root['from']['key'] = 'from'
+        table = Visitor(root['from']).visit()[0]
+        root['from'].pop('key')
+        name = table.name
+        alias = 'over_%s' % str(uuid.uuid4())[:6]
+
+        if not root.get('groupBy'):
+            return name, self.func(), table.alias(alias)
+        func = self._expr['operands'][0].get('operands', [{}])[0]
+        operator = self._expr['operands'][0].get('operator', {}).get('name')
+        func = Visitor(func).visit().label('col_%s' % str(uuid.uuid4())[:6])
+        root['groupBy']['key'] = 'groupBy'
+        table = Groupby(root['groupBy']).visit(select([func]).select_from(table))
+        root['groupBy'].pop('key')
+        func = Function(Function.create(operator, Column.create(func.name))).visit()
+        return name, func, table.alias(alias)
+
+    def window(self, operator, table1, table2, column):
+        from sqlalchemy import text
+        return text('(%s)' % str(Expression(Expression.create(
+            operator, Column.create(table1, column), Column.create(table2, column)
+        )).visit()))
+
+    def order(self, table, column):
+        from sqlalchemy import text
+        return text(str(Column(Column.create(table, column)).visit()))
+
+    def visit(self):
+        import query
+        from sqlalchemy import select, text
+        if self.dbtype != 'mysql':
+            return self.func().over(
+                partition_by=self.partition_by, order_by=self.order_by
+            )
+
+        name, aggr, table = self.parse()
+        over = select([aggr]).select_from(table)
+        for col in self.partition_by:
+            over = over.where(self.window('=', table.name, name, col.name))
+        for col in self.order_by:
+            col_name = getattr(col, 'name', list(col.get_children())[0].name)
+            over = over.where(self.window('<=', table.name, name, col_name))
+            over = over.order_by(self.order(table.name, str(col)))
+        return text('(%s)' % query.Query(over))
+
+    @classmethod
+    def accept(cls, expr):
+        if not Expression.accept(expr):
+            return False
+        return Expression(expr).operator.lower() == 'over'
 
 
 class Function(Expression):
@@ -255,6 +344,13 @@ class In(Expression):
         return Expression(expr).operator.lower() == 'in' or \
             Expression(expr).operator.lower() == 'not in'
 
+    @classmethod
+    def create(cls, *operands):
+        return {
+            "operator": {"name": "IN"},
+            "operands": operands or []
+        }
+
 
 class As(Expression):
     @property
@@ -276,10 +372,17 @@ class As(Expression):
             return False
         return Expression(expr).operator.lower() == 'as'
 
+    @classmethod
+    def create(cls, *operands):
+        return {
+            "operator": {"name": "AS"},
+            "operands": operands or []
+        }
+
 
 class Desc(Expression):
     def visit(self):
-        column = Column(self._expr['operands'][0]).visit()
+        column = Visitor(self._expr['operands'][0]).visit()
         return column.desc()
 
     @classmethod
@@ -287,6 +390,16 @@ class Desc(Expression):
         if not Expression.accept(expr):
             return False
         return Expression(expr).operator.lower() == 'desc'
+
+    @classmethod
+    def create(cls, *name):
+        name = list(name)
+        if isinstance(name[0], basestring):
+            name[0] = Column.create(name[0])
+        return {
+            "operator": {"name": "DESC"},
+            "operands": name
+        }
 
 
 class ValueList(Visitable):
@@ -337,6 +450,10 @@ class Value(Visitable):
                (util.contain(expr, ['value', 'typeName']) and isinstance(expr['value'], dict)) or \
                (util.contain(expr, ['typeName']) and str(expr['typeName']).lower() == 'null')
 
+    @classmethod
+    def create(cls, value):
+        return {'value': {'value': value}, 'typeName': 'DECIMAL'}
+
 
 class CaseWhen(Visitable):
     @property
@@ -378,7 +495,13 @@ class Limit(Visitable):
 
     @classmethod
     def accept(cls, expr):
-        return expr.get('key') == 'fetch'
+        return expr.get('key') == 'fetch' and Value.accept(expr)
+
+    @classmethod
+    def create(cls, value):
+        result = Value.create(value)
+        result['key'] = 'fetch'
+        return result
 
 
 class Select(ValueList):

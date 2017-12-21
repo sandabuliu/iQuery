@@ -5,11 +5,12 @@ __author__ = 'tong'
 
 
 class Visitable(object):
-    def __init__(self, dbtype, schema, tabledict=None, fielddict=None):
+    def __init__(self, dbtype, schema, tabledict=None, fielddict=None, root=None):
         self.dbtype = dbtype
         self.schema = schema
         self.tabledict = tabledict or {}
         self.fielddict = fielddict or {}
+        self.root = root
 
     @classmethod
     def accept(cls, expr):
@@ -17,7 +18,7 @@ class Visitable(object):
 
     @property
     def args(self):
-        return self.dbtype, self.schema, self.tabledict, self.fielddict
+        return self.dbtype, self.schema, self.tabledict, self.fielddict, self.root
 
 
 class Visitor(Visitable):
@@ -29,6 +30,7 @@ class Visitor(Visitable):
 
 class Query(Visitor):
     def visit(self, expr):
+        self.root = expr
         for key, exp in expr.items():
             if key == 'query':
                 for k in exp:
@@ -52,8 +54,8 @@ class Query(Visitor):
 
 
 class Column(Visitable):
-    def __init__(self, dbtype, schema, tabledict=None, fielddict=None):
-        super(Column, self).__init__(dbtype, schema, tabledict, fielddict)
+    def __init__(self, *args):
+        super(Column, self).__init__(*args)
         self._table = None
         self._name = None
 
@@ -94,8 +96,8 @@ class Column(Visitable):
 
 
 class Table(Visitable):
-    def __init__(self, dbtype, schema, tabledict=None, fielddict=None):
-        super(Table, self).__init__(dbtype, schema, tabledict, fielddict)
+    def __init__(self, *args):
+        super(Table, self).__init__(*args)
         self._names = None
 
     def names(self, expr):
@@ -120,6 +122,8 @@ class Expression(Visitable):
         if expr['operator']['name'].lower() == 'as':
             Visitor(*self.args).visit(expr['operands'][0])
             return
+        if expr['operator']['name'].lower() == 'over':
+            expr['root'] = self.root
         expr['dbtype'] = self.dbtype
         for _ in expr['operands']:
             Visitor(*self.args).visit(_)

@@ -12,7 +12,8 @@ types = {
     'string': sqltypes.String,
     'int': sqltypes.INT,
     'integer': sqltypes.Integer,
-    'char': sqltypes.CHAR
+    'char': sqltypes.CHAR,
+    'date': sqltypes.DATE
 }
 
 

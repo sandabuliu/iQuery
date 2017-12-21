@@ -5,16 +5,28 @@
 __author__ = 'tong'
 
 
+def get_type(name):
+    from visitor import TypeName
+    return TypeName(TypeName.create(name)).visit()
+
+
 class Function(object):
     def __init__(self, dbtype):
         self.dbtype = dbtype
 
     def visit(self, func_name):
-        from visitor import TypeName
         from sqlalchemy.sql import func, case
         func_entry = {
             'entry': {
                 'cast': lambda x, y: func.cast(x, y),
+                'cast_day': lambda x: func.cast(x, get_type('date')),
+                'cast_month': lambda x: self.visit('concat')(
+                    self.visit('year')(x), self.visit_param('-'), self.visit('month')(x)
+                ),
+                'cast_quarter': lambda x: self.visit('concat')(
+                    self.visit('year')(x), self.visit('quarter')(x), self.visit_param('Q')
+                ),
+                'cast_year': lambda x: self.visit('year')(x)
             },
             'oracle': {
                 'if': lambda x, y, z: case([(x, y)], else_=z),
@@ -43,7 +55,7 @@ class Function(object):
             'mssql': {
                 'if': lambda x, y, z: case([(x, y)], else_=z),
                 'concat': lambda *args: reduce(lambda a, b: a+b, map(
-                    lambda x: func.cast(x, TypeName.create('string').visit()), args
+                    lambda x: func.cast(x, get_type('string')), args
                 ))
             }
         }

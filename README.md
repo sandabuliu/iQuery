@@ -2,6 +2,9 @@
 
 数据仓库通用查询服务
 
+## 最近更新
+* 支持窗口函数语句(mysql 仅为测试)
+
 ## 安装依赖
 ```shell
 pip install -r requirements.txt
@@ -204,6 +207,6 @@ curl -i -X GET 'http://127.0.0.1:8000/query/tree?sql=SELECT+*+FROM+faker91+limit
 
 ### TodoList
 
+* 数据分析
 * 数据导出
-* OLAP 接口
 * 可视化界面
