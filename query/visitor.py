@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import json
-import uuid
 import util
 import copy
 import logging
@@ -130,6 +129,10 @@ class Table(Visitable):
     def accept(cls, expr):
         return util.contain(expr, ['names']) and expr.get('key') == 'from'
 
+    @classmethod
+    def create(cls, *names):
+        return {'names': names}
+
 
 class TypeName(Visitable):
     @property
@@ -221,59 +224,35 @@ class Over(Expression):
             return ValueList(args['orderList']).visit()
         return []
 
-    def parse(self):
-        from sqlalchemy import select
-        root = self._expr.get('root')
-        root['from']['key'] = 'from'
-        table = Visitor(root['from']).visit()[0]
-        root['from'].pop('key')
-        name = table.name
-        alias = 'over_%s' % str(uuid.uuid4())[:6]
-
-        if not root.get('groupBy'):
-            return name, self.func(), table.alias(alias)
-        func = self._expr['operands'][0].get('operands', [{}])[0]
-        operator = self._expr['operands'][0].get('operator', {}).get('name')
-        func = Visitor(func).visit().label('col_%s' % str(uuid.uuid4())[:6])
-        root['groupBy']['key'] = 'groupBy'
-        table = Groupby(root['groupBy']).visit(select([func]).select_from(table))
-        root['groupBy'].pop('key')
-        func = Function(Function.create(operator, Column.create(func.name))).visit()
-        return name, func, table.alias(alias)
-
-    def window(self, operator, table1, table2, column):
-        from sqlalchemy import text
-        return text('(%s)' % str(Expression(Expression.create(
-            operator, Column.create(table1, column), Column.create(table2, column)
-        )).visit()))
-
-    def order(self, table, column):
-        from sqlalchemy import text
-        return text(str(Column(Column.create(table, column)).visit()))
-
     def visit(self):
-        import query
-        from sqlalchemy import select, text
+        from util import DEFOver
         if self.dbtype != 'mysql':
             return self.func().over(
                 partition_by=self.partition_by, order_by=self.order_by
             )
-
-        name, aggr, table = self.parse()
-        over = select([aggr]).select_from(table)
-        for col in self.partition_by:
-            over = over.where(self.window('=', table.name, name, col.name))
-        for col in self.order_by:
-            col_name = getattr(col, 'name', list(col.get_children())[0].name)
-            over = over.where(self.window('<=', table.name, name, col_name))
-            over = over.order_by(self.order(table.name, str(col)))
-        return text('(%s)' % query.Query(over))
+        return DEFOver(self._expr).visit()
 
     @classmethod
     def accept(cls, expr):
         if not Expression.accept(expr):
             return False
         return Expression(expr).operator.lower() == 'over'
+
+    @classmethod
+    def create(cls, function, partition_by=None, order_by=None):
+        Function(function)
+        operands = [function]
+        params = {}
+        if partition_by:
+            params['partitionList'] = {'list': partition_by}
+        if order_by:
+            params['orderList'] = {'list': order_by}
+        if params:
+            operands.append(params)
+        return {
+            "operator": {"name": 'OVER'},
+            "operands": operands
+        }
 
 
 class Function(Expression):
