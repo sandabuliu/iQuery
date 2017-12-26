@@ -75,7 +75,15 @@ class QueryMaker(object):
         self._where = where
         self._order = order
         self._limit = limit
+        self._joins = []
         self._xalias = []
+        self._values = []
+
+    def add_join(self, *args):
+        self._joins.append(args)
+
+    def add_value(self, value):
+        self._values.append(value)
 
     @property
     def xaxis(self):
@@ -96,6 +104,7 @@ class QueryMaker(object):
         return select().select_from(table)
 
     def value(self, query):
+        from sqlalchemy import Column
         for i, col in enumerate(self._yaxis):
             operator = str(col.get('operator', {}).get('name')).upper()
             if operator not in OPS:
@@ -105,6 +114,7 @@ class QueryMaker(object):
             else:
                 col = self.column(col, 'y_%s' % i)
                 query.append_column(col)
+                self._values.append(Column(col.name))
         return query
 
     def group(self, query):
@@ -128,8 +138,9 @@ class QueryMaker(object):
 
     def order(self, query):
         order = self._order or []
-        for i, col in enumerate(order):
-            query = query.order_by(self.column(col, 'o_%s' % i))
+        columns = list(query.columns)
+        for col in order:
+            query = query.order_by(columns[col])
         return query
 
     def limit(self, query):
@@ -138,7 +149,8 @@ class QueryMaker(object):
             return Limit(Limit.create(self._limit)).visit(query)
         return query
 
-    def column(self, value, default_alias=None):
+    @classmethod
+    def column(cls, value, default_alias=None):
         from sqlalchemy import Column
         from sqlalchemy.sql.elements import Label
         if isinstance(value, basestring):
@@ -153,11 +165,24 @@ class QueryMaker(object):
             col = col.label(default_alias)
         return col
 
+    def joins(self, query):
+        from sqlalchemy import select, Column
+        from sqlalchemy.sql.elements import and_
+        if not self._joins:
+            return query
+        join = query.alias('query_1')
+        for query_, join_on in self._joins:
+            join = join.join(query_, and_(*join_on), isouter=True)
+
+        cols = [Column(_) for _ in self.xalias] + self._values
+        return select(cols).select_from(join)
+
     def build(self):
         query = self.query()
         query = self.where(query)
         query = self.group(query)
         query = self.value(query)
+        query = self.joins(query)
         query = self.order(query)
         query = self.limit(query)
         return Query(query)
@@ -165,6 +190,7 @@ class QueryMaker(object):
 
 if __name__ == '__main__':
     import json
+    from toolz import merge
     logger.addHandler(logging.StreamHandler())
     # with open('../conf/test.json') as fp:
     #     text = fp.read()
@@ -176,12 +202,10 @@ if __name__ == '__main__':
     # print query.execute()
     from visitor import Column, Function, TypeName, Desc
 
-    x = Function.create('cast_year', Column.create('ctimestamp'))
+    x = Function.create('cast_month', Column.create('ctimestamp'))
     y = Function.create('count', Column.create('age'))
-    y['calculate'] = 'accumulate'
-    q = QueryMaker('mysql',
-                   {'name': 'faker91', 'database': 'bin_test'},
-                   [x], [y]).build()
+    q = QueryMaker('mysql', {'name': 'faker91', 'database': 'bin_test'},
+                   [x], [y, merge(y, {'calculate': 'Same'})], order=[1]).build()
     connector = Connector(
         type='mysql', username='root', password='123456', host='192.168.1.150', port=3306, database='bin_test'
     )

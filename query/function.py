@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from sqlalchemy import text
 
 __author__ = 'tong'
 
@@ -18,6 +19,10 @@ class Function(object):
         from sqlalchemy.sql import func, case
         func_entry = {
             'entry': {
+                'next_year': lambda x: func.TIMESTAMPADD(text('year'), self.visit_param(1), x),
+                'next_quarter': lambda x: func.TIMESTAMPADD(text('quarter'), self.visit_param(1), x),
+                'next_month': lambda x: func.TIMESTAMPADD(text('month'), self.visit_param(1), x),
+                'next_day': lambda x: func.TIMESTAMPADD(text('day'), self.visit_param(1), x),
                 'cast': lambda x, y: func.cast(x, y),
                 'cast_day': lambda x: func.cast(x, get_type('date')),
                 'cast_month': lambda x: self.visit('concat')(
@@ -63,8 +68,8 @@ class Function(object):
         et.update(func_entry.get(self.dbtype, {}))
         return self.wrap(et.get(func_name) or getattr(func, func_name))
 
-    def visit_param(self, value):
-        from sqlalchemy import text
+    @classmethod
+    def visit_param(cls, value):
         if isinstance(value, basestring):
             return text("'%s'" % value)
         if isinstance(value, (int, float, long)):
