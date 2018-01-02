@@ -40,7 +40,7 @@ class Calculate(object):
             function = Function.create(aggr, self._column)
         over = Over.create(function, partition_by=partition_by, order_by=order_by)
         table = self._query.froms[0]
-        over['dbtype'] = 'mysql'
+        over['dbtype'] = self.maker.dbtype
         over['root'] = {
             'from': Table.create(table.schema, table.name),
             'groupBy': {'list': self.maker.xaxis}

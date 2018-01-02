@@ -140,7 +140,14 @@ class QueryMaker(object):
         order = self._order or []
         columns = list(query.columns)
         for col in order:
-            query = query.order_by(columns[col])
+            if isinstance(col, list):
+                col, order = col
+                col = columns[col]
+                if order.lower() == 'desc':
+                    col = col.desc()
+            else:
+                col = columns[col]
+            query = query.order_by(col)
         return query
 
     def limit(self, query):

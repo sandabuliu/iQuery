@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+try:
+    from MySQLdb.cursors import Cursor
+    Cursor._defer_warnings = True
+except ImportError:
+    Cursor = None
+
+
 __author__ = 'tong'
 
 

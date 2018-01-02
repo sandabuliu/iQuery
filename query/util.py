@@ -91,30 +91,29 @@ class DEFOver(object):
         return Expression(where).visit()
 
     def visit(self):
-        import copy
         if self.is_native:
             table, query = self.native()
         else:
             table, query = self.complex()
 
         for item in self.partition_by:
-            query = query.where(
-                self.column(copy.deepcopy(item), table) ==
-                self.column(copy.deepcopy(item))
-            )
+            query = query.where(self.column(item, table) == self.column(item))
         for item in self.order_by:
-            query = query.where(
-                self.column(copy.deepcopy(item), table) <=
-                self.column(copy.deepcopy(item))
-            )
+            query = query.where(self.column(item, table) <= self.column(item))
         return query.label(random_field())
 
     def column(self, column, table=None):
+        from copy import deepcopy
         from sqlalchemy import text, Column
         from sqlalchemy.sql.functions import Function
 
+        if hasattr(column, 'copy'):
+            column = column.copy()
+        else:
+            column = deepcopy(column)
         is_null = table is None
         if isinstance(column, Column) and is_null:
+            column.table = self.table
             return text(str(column))
         if isinstance(column, Function) and is_null:
             params = self.params(column)
