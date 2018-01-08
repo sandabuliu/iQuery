@@ -156,8 +156,7 @@ class QueryMaker(object):
             return Limit(Limit.create(self._limit)).visit(query)
         return query
 
-    @classmethod
-    def column(cls, value, default_alias=None):
+    def column(self, value, default_alias=None):
         from sqlalchemy import Column
         from sqlalchemy.sql.elements import Label
         if isinstance(value, basestring):
@@ -165,6 +164,7 @@ class QueryMaker(object):
             if default_alias:
                 col = col.label(default_alias)
             return col
+        value['dbtype'] = self.dbtype
         col = Visitor(value).visit()
         if isinstance(col, Label):
             return col
