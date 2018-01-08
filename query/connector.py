@@ -23,7 +23,7 @@ class Connector(object):
         self.host = self._kwargs.pop('host', None)
         self.port = self._kwargs.pop('port', None)
         self.alias = self._kwargs.pop('alias', '') or ''
-        self.database = self._kwargs.pop('database', None)
+        self.schema = self._kwargs.pop('schema', None)
         self.connect_type = self._kwargs.pop('connect_type', None)
 
     @property

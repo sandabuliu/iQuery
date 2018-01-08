@@ -21,6 +21,10 @@ class Engine(object):
         self._table_names = None
         self._view_names = None
 
+    @property
+    def connector(self):
+        return self._connobj
+
     @classmethod
     def create(cls, name):
         import MySQLdb
@@ -52,10 +56,10 @@ class Engine(object):
         if name in self._metadata.tables:
             return self._metadata.tables[name]
         if name in self.tables():
-            self._metadata.reflect(only=[name], views=True, schema=self._connobj.database)
+            self._metadata.reflect(only=[name], views=True, schema=self._connobj.schema)
             return self._metadata.tables[name]
 
-    def databases(self):
+    def schemas(self):
         conn = self._engine.connect()
         dbs = self._engine.dialect.get_schema_names(conn)
         conn.close()
@@ -64,16 +68,16 @@ class Engine(object):
     def tables(self):
         conn = self._engine.connect()
         if not self._table_names:
-            self._table_names = self._engine.dialect.get_table_names(conn, self._connobj.database)
+            self._table_names = self._engine.dialect.get_table_names(conn, self._connobj.schema)
         if not self._view_names:
-            self._view_names = self._engine.dialect.get_view_names(conn, self._connobj.database)
+            self._view_names = self._engine.dialect.get_view_names(conn, self._connobj.schema)
         return [{'name': _, 'type': 'table'} for _ in self._table_names] + \
                [{'name': _, 'type': 'view'} for _ in self._view_names]
 
-    def schema(self, table):
+    def columns(self, table):
         if table not in self._metadata.tables:
-            self._metadata.reflect(only=[table], schema=self._connobj.database)
-        columns = self._engine.dialect.get_columns(self._engine, table, self._connobj.database)
+            self._metadata.reflect(only=[table], schema=self._connobj.schema)
+        columns = self._engine.dialect.get_columns(self._engine, table, self._connobj.schema)
         for column in columns:
             if isinstance(column['type'], visitors.VisitableType):
                 column['type'] = column['type']().python_type
@@ -83,8 +87,8 @@ class Engine(object):
 
     def preview(self, table, rows=100):
         if table not in self._metadata.tables:
-            self._metadata.reflect(only=[table], schema=self._connobj.database)
-        table = self._metadata.tables['%s.%s' % (self._connobj.database, table)]
+            self._metadata.reflect(only=[table], schema=self._connobj.schema)
+        table = self._metadata.tables['%s.%s' % (self._connobj.schema, table)]
         return ResultProxy(select([table]).limit(rows).execute())
 
     @property

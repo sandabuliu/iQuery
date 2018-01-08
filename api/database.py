@@ -12,7 +12,7 @@ from utils.constants import DEFAULT_PORT
 __author__ = 'tong'
 
 
-class DatabasesHandler(BaseHandler):
+class SchemasHandler(BaseHandler):
     @gen.coroutine
     def get(self):
         args = self.parse_args([
@@ -27,8 +27,8 @@ class DatabasesHandler(BaseHandler):
         args.setdefault('port', DEFAULT_PORT.get(self.args['type']))
         args.update(args.pop('kwargs', {}))
         connector = Connector(**args)
-        databases = yield self.async_do(connector.engine.databases)
-        self.response(databases=databases)
+        schemas = yield self.async_do(connector.engine.schemas)
+        self.response(schemas=schemas)
 
 
 class TablesHandler(BaseHandler):
@@ -41,7 +41,7 @@ class TablesHandler(BaseHandler):
             {'name': 'username', 'required': False, 'location': 'args'},
             {'name': 'password', 'required': False, 'location': 'args'},
             {'name': 'alias', 'required': False, 'location': 'args'},
-            {'name': 'database', 'required': True, 'location': 'args'},
+            {'name': 'schema', 'required': True, 'location': 'args'},
             {'name': 'kwargs', 'required': False, 'location': 'args', 'cast': json.loads}
         ])
         args.setdefault('port', DEFAULT_PORT.get(self.args['type']))
@@ -51,7 +51,7 @@ class TablesHandler(BaseHandler):
         self.response(tables=tables)
 
 
-class SchemaHandler(BaseHandler):
+class ColumnsHandler(BaseHandler):
     @gen.coroutine
     def get(self):
         args = self.parse_args([
@@ -61,7 +61,7 @@ class SchemaHandler(BaseHandler):
             {'name': 'username', 'required': False, 'location': 'args'},
             {'name': 'password', 'required': False, 'location': 'args'},
             {'name': 'alias', 'required': False, 'location': 'args'},
-            {'name': 'database', 'required': True, 'location': 'args'},
+            {'name': 'schema', 'required': True, 'location': 'args'},
             {'name': 'table', 'required': True, 'location': 'args'},
             {'name': 'kwargs', 'required': False, 'location': 'args', 'cast': json.loads}
         ])
@@ -69,5 +69,5 @@ class SchemaHandler(BaseHandler):
         args.setdefault('port', DEFAULT_PORT.get(self.args['type']))
         args.update(args.pop('kwargs', {}))
         connector = Connector(**args)
-        columns = yield self.async_do(connector.engine.schema, table)
+        columns = yield self.async_do(connector.engine.columns, table)
         self.response(columns=columns)
