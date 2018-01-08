@@ -25,7 +25,7 @@ class ResultHandler(BaseHandler):
             {'name': 'username', 'required': False, 'location': 'args'},
             {'name': 'password', 'required': False, 'location': 'args'},
             {'name': 'alias', 'required': False, 'location': 'args'},
-            {'name': 'database', 'required': False, 'location': 'args'},
+            {'name': 'schema', 'required': False, 'location': 'args'},
             {'name': 'sql', 'required': True, 'location': 'args'},
             {'name': 'kwargs', 'required': False, 'location': 'args', 'cast': json.loads}
         ])
@@ -35,7 +35,7 @@ class ResultHandler(BaseHandler):
         connector = Connector(**args)
 
         tree = yield self.gen_tree(sql)
-        Visitor(connector.type, connector.database).visit(tree)
+        Visitor(connector.type, connector.schema).visit(tree)
         query = Query.load(tree, connector)
         data = yield self.async_do(query.execute)
         self.response(data=data.data, columns=data.schema)
@@ -46,11 +46,11 @@ class SQLHandler(BaseHandler):
     def get(self):
         args = self.parse_args([
             {'name': 'sql', 'required': True, 'location': 'args'},
-            {'name': 'database', 'required': False, 'location': 'args'},
+            {'name': 'schema', 'required': False, 'location': 'args'},
             {'name': 'type', 'required': True, 'location': 'args'}
         ])
         tree = yield self.gen_tree(args['sql'])
-        Visitor(args['type'], args.get('database')).visit(tree)
+        Visitor(args['type'], args.get('schema')).visit(tree)
         query = Query.load(tree, Engine.create(args['type']))
         self.response(sql=str(query))
 

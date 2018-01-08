@@ -100,7 +100,7 @@ class QueryMaker(object):
         if isinstance(self._table, basestring):
             table = Table(self._table, MetaData())
         else:
-            table = Table(self._table['name'], MetaData(schema=self._table['database']))
+            table = Table(self._table['name'], MetaData(schema=self._table['schema']))
         return select().select_from(table)
 
     def value(self, query):

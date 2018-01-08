@@ -26,7 +26,7 @@ class ResultHandler(BaseHandler):
             {'name': 'username', 'required': False, 'location': 'args'},
             {'name': 'password', 'required': False, 'location': 'args'},
             {'name': 'alias', 'required': False, 'location': 'args'},
-            {'name': 'database', 'required': False, 'location': 'args'},
+            {'name': 'schema', 'required': False, 'location': 'args'},
             {'name': 'kwargs', 'required': False, 'location': 'args', 'cast': json.loads},
 
             {'name': 'table', 'required': True, 'location': 'body'},
@@ -75,9 +75,9 @@ class ResultHandler(BaseHandler):
         if not isinstance(self.args['table'], dict):
             table = {"name": table}
 
-        if 'database' in table:
+        if 'schema' in table:
             return table
-        table['database'] = self.args.get('database')
+        table['schema'] = self.args.get('schema')
         return table
 
     @property
