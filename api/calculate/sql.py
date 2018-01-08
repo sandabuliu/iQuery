@@ -103,6 +103,8 @@ class SQLHandler(BaseHandler):
                 func = Function.create(aggr, Column.create(y['name']))
                 if y.get('calculate'):
                     func['calculate'] = y['calculate']
+                if y.get('result_type'):
+                    func['result_type'] = y['result_type']
                 result.append(func)
             else:
                 result.append(Function.create('COUNT', Column.create(y)))
