@@ -3,7 +3,8 @@
 数据仓库通用查询服务
 
 ## 最近更新
-* 支持窗口函数语句(mysql 仅为测试)
+* 添加维度计算
+* 支持窗口函数
 
 ## 安装依赖
 ```shell
@@ -61,9 +62,49 @@ main.py options:
 
 ## API 接口文档
 
+### 计算接口
+
+#### `GET` `/api/calculate/result` 获取计算结果
+
+|参数名|类型|含义|参数位置|是否必选|示例|
+|----|----|----|----|----|----|
+|type|str|数据库类型|URL|√||
+|host|str|数据库地址|URL|√||
+|port|int|数据库端口|URL|||
+|username|str|数据库用户名|URL|||
+|password|str|数据库密码|URL|||
+|alias|str|数据库其他连接参数|URL|||
+|schema|str|数据库名称|URL|√||
+|kwargs|str - `json`|数据库其他配置参数|URL|||
+|xAxis|`str`/`json`|维度|BODY||`name`<br>`["name", "age"]`<br>`[{"params": ["cdatetime"], "func": "cast_year"}]`|
+|yAxis|`str`/`json`|维度|BODY|√|`name`<br>`[{"name": "name", "func": "count"]`<br>`{"name": "name", "func": "count", "calculate": "percert"`|
+|table|`str`/`json`|表名|BODY|√|`table_name`<br>`{"table": "test", "schema": "schema"}`|
+|where|`str`/`json`|过滤条件|BODY||`age<2`|
+|order|str - `json(list)`|排序|BODY||`[0]`<br>`[(0, "DESC"), 1]`|
+
+`yAxis`中`calculate`对应取值：
+
+`percent`: 百分比    
+`accumulate`: 累加计算    
+`same`: 同比    
+`annular`: 环比  
+
+##### 请求示例
+
+```shell
+curl -i -X POST 'http://127.0.0.1:8000/api/calculate/result?schema=bin_test&type=mysql&host=192.168.1.1&username=root&password=123456' -d '{"table": "faker91", "yAxis": [{"name": "name", "func": "count", "calculate": "same", "result_type": "rate"}], "xAxis": [{"params": ["cdatetime"], "func": "cast_year"}]}'
+```
+结果返回：
+
+```json
+{"data": [[0, null], [1970, null], [2009, -5], [2010, 4], [2011, 0], [2012, -6], [2013, 0], [2014, 3], [2015, 1], [2016, -1], [2017, 0], [2018, -4], [2019, 3], [2020, 1]], "columns": [{"type": "long", "name": "x_0"}, {"type": "long", "name": "anon_1"}]}
+```  
+
+
+
 ### 数据库接口
 
-#### `GET` `/api/databases` 获取全部数据库
+#### `GET` `/api/schemas` 获取全部SCHEMA
 
 |参数名|类型|含义|参数位置|是否必选|
 |----|----|----|----|----|
@@ -78,7 +119,7 @@ main.py options:
 ##### 请求示例
 
 ```shell
-curl -i -X GET 'http://127.0.0.1:8000/db/databases?type=mysql&host=127.0.0.1&port=3306&username=root&password=123456'
+curl -i -X GET 'http://127.0.0.1:8000/api/db/schema?type=mysql&host=127.0.0.1&port=3306&username=root&password=123456'
 ```
 结果返回：
 
@@ -97,13 +138,13 @@ curl -i -X GET 'http://127.0.0.1:8000/db/databases?type=mysql&host=127.0.0.1&por
 |username|str|数据库用户名|URL||
 |password|str|数据库密码|URL||
 |alias|str|数据库其他连接参数|URL||
-|database|str|数据库名称|URL|√|
+|schema|str|数据库名称|URL|√|
 |kwargs|str - `json`|数据库其他配置参数|URL||
 
 ##### 请求示例
 
 ```shell
-curl -i -X GET 'http://127.0.0.1:8000/tables?type=mysql&host=127.0.0.1&port=3306&username=root&password=12345&database=mysql'
+curl -i -X GET 'http://127.0.0.1:8000/api/tables?type=mysql&host=127.0.0.1&port=3306&username=root&password=12345&schema=mysql'
 ```
 结果返回：
 
@@ -112,7 +153,7 @@ curl -i -X GET 'http://127.0.0.1:8000/tables?type=mysql&host=127.0.0.1&port=3306
 ```
 
 
-#### `GET` `/api/schema` 查看数据库表结构信息
+#### `GET` `/api/columns` 查看数据库表字段信息
 
 |参数名|类型|含义|参数位置|是否必选|
 |----|----|----|----|----|
@@ -122,14 +163,14 @@ curl -i -X GET 'http://127.0.0.1:8000/tables?type=mysql&host=127.0.0.1&port=3306
 |username|str|数据库用户名|URL||
 |password|str|数据库密码|URL||
 |alias|str|数据库其他连接参数|URL||
-|database|str|数据库名称|URL|√|
+|schema|str|数据库名称|URL|√|
 |table|str|数据表名称|URL|√|
 |kwargs|str - `json`|数据库其他配置参数|URL||
 
 ##### 请求示例
 
 ```shell
-curl -i -X GET 'http://127.0.0.1:8000/schema?type=mysql&host=127.0.0.1&port=3306&username=root&password=123456&database=mysql&table=user'
+curl -i -X GET 'http://127.0.0.1:8000/api/schema?type=mysql&host=127.0.0.1&port=3306&username=root&password=123456&schema=mysql&table=user'
 ```
 结果返回：
 
@@ -147,14 +188,14 @@ curl -i -X GET 'http://127.0.0.1:8000/schema?type=mysql&host=127.0.0.1&port=3306
 |username|str|数据库用户名|URL||
 |password|str|数据库密码|URL||
 |alias|str|数据库其他连接参数|URL||
-|database|str|数据库名称|URL||
+|schema|str|数据库名称|URL||
 |sql|str|SQL 语句，标准SQL|URL|√|
 |kwargs|str - `json`|数据库其他配置参数|URL||
 
 ##### 请求示例
 
 ```shell
-curl -i -X GET 'http://127.0.0.1:8000/query/result?type=mysql&host=127.0.0.1&port=3306&username=root&password=123456&sql=select+*+from+test+limit+2'
+curl -i -X GET 'http://127.0.0.1:8000/api/query/result?type=mysql&host=127.0.0.1&port=3306&username=root&password=123456& schema=test&sql=select+*+from+test+limit+2'
 ```
 结果返回：
 
@@ -181,12 +222,31 @@ curl -i -X GET 'http://127.0.0.1:8000/query/result?type=mysql&host=127.0.0.1&por
 |----|----|----|----|----|
 |type|str|数据库类型|URL|√|
 |sql|str|SQL 语句，标准SQL|URL|√|
-|database|str|数据库名|URL||
+|schema|str|数据库名|URL||
 
 ##### 请求示例
 
 ```shell
-curl -i -X GET 'http://127.0.0.1:8000/query/tree?sql=SELECT+*+FROM+faker91+limit+10'
+curl -i -X GET 'http://127.0.0.1:8000/api/query/sql?sql=SELECT+*+FROM+faker91+limit+10&type=oracle'
+curl -i -X GET 'http://127.0.0.1:8000/api/query/sql?sql=SELECT+age,sum(age)+over(order+by+age)+FROM+faker91&type=mysql'
+```
+结果返回：
+
+```json
+{"sql": "SELECT *  FROM (SELECT *  FROM faker91)  WHERE ROWNUM <= 10"}
+{"sql": "SELECT age, (SELECT sum(age) AS sum_1  FROM faker91 AS tb_ad1f41  WHERE tb_ad1f41.age <= faker91.age) AS fd_7e4a47  FROM faker91"}
+```
+
+#### `GET` `/api/query/tree` 获取查询语法树
+
+|参数名|类型|含义|参数位置|是否必选|
+|----|----|----|----|----|
+|sql|str|SQL 语句，标准SQL|URL|√|
+
+##### 请求示例
+
+```shell
+curl -i -X GET 'http://127.0.0.1:8000/api/query/tree?sql=SELECT+*+FROM+faker91+limit+10'
 ```
 结果返回：
 
